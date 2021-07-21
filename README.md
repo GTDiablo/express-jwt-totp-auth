@@ -18,7 +18,7 @@ Start mongodb server:
 
     docker-compose up database
 
-> If you already have a running mongodb server, then you can modify the `.env` file.
+> If you already have a running mongodb server, then you can modify the `.env` file accordingly.
 
 Start application:
 
