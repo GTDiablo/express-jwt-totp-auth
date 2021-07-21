@@ -17,8 +17,6 @@ const UserSchema = new Schema({
     secret: {
         type: String,
         required: true,
-        maxlength: 50,
-        minlength: 50,
     }
 });
 
