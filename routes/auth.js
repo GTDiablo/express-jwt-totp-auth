@@ -43,10 +43,13 @@ router.post('/registration', async (req, res)=> {
 
         // Generate totp credentials
         const secret = speakeasy.generateSecret({length: parseInt(TOTP_SECRET_LENGTH)});
-        const url = speakeasy.otpauthURL({ secret: secret.ascii, label: APP_NAME, algorithm: 'sha512' });
+
+        // TODO: Fix otpauthURL speakeasy function
+        // const url = speakeasy.otpauthURL({ secret: secret.base32, label: `${APP_NAME}: ${email}` });
+        const url = `otpauth://totp/ex-aut: ${email}?secret=${secret.base32}`;
 
         // Save processed user to database
-        const user = new User({username, email, password: hashedPassword, secret: secret.ascii});
+        const user = new User({username, email, password: hashedPassword, secret: secret.base32});
         const savedUser = await user.save();
         return res.json({
             ..._.pick(savedUser,['username', 'email']),
@@ -59,58 +62,60 @@ router.post('/registration', async (req, res)=> {
 });
 
 router.post('/login', async (req, res) => {
-    // Validate request data
-    const validator = Joi.object({
-        email: Joi.string().email().required(),
-        password: Joi.string().required(),
-        totp: Joi.string().required()
-    });
-    const {value, error} = validator.validate(req.body);
-    if (error) {
-        res.status(400).json({
-            details: error.details
-        }).end();
-        return;
-    }
+   try {
+       // Validate request data
+       const validator = Joi.object({
+           email: Joi.string().email().required(),
+           password: Joi.string().required(),
+           totp: Joi.string().required()
+       });
+       const {value, error} = validator.validate(req.body);
+       if (error) {
+           return res.status(400).json({
+               details: error.details
+           }).end();
+       }
 
-    // Destructure validated data
-    const {email, password, totp} = value;
+       // Destructure validated data
+       const {email, password, totp} = value;
 
-    // Check if user exists
-    const user = await User.findOne({email});
-    if (!user) {
-        res.status(400).json({
-            'details': 'User does not exists!'
-        }).end();
-        return;
-    }
+       // Check if user exists
+       const user = await User.findOne({email});
+       if (!user) {
+           return res.status(400).json({
+               'details': 'User does not exists!'
+           }).end();
+       }
 
-    // Compare passwords
-    const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) {
-        res.status(400).json({
-            'details': 'Wrong email or password!'
-        }).end();
-        return;
-    }
-    // Verify totp
-    const verified = speakeasy.totp.verify({
-        secret: user.secret,
-        algorithm: 'sha512',
-        token: totp
-    })
-    if (!verified) {
-        res.status(400).json({
-            details: 'TOTP token mismatch!'
-        }).end()
-        return;
-    }
+       // Compare passwords
+       const passwordMatch = await bcrypt.compare(password, user.password);
+       if (!passwordMatch) {
+           return res.status(400).json({
+               'details': 'Wrong email or password!'
+           }).end();
+       }
 
-    // Send jwt with user data
-    res.json({
-        token: jwt.sign(_.pick(user, ['username', 'email']), JWT_SECRET)
-    })
+       // Verify totp
+       const verified = speakeasy.totp.verify({
+           secret: user.secret,
+           encoding: 'base32',
+           token: totp,
+           window: 2
+       });
+       if (!verified) {
+           return res.status(400).json({
+               details: 'TOTP token mismatch!'
+           }).end()
+       }
 
+       // Send jwt with user data
+       return res.json({
+           token: jwt.sign(_.pick(user, ['username', 'email']), JWT_SECRET)
+       });
+   } catch (error) {
+       // Handle server error
+       return res.status(500).json({details: error});
+   }
 });
 
 module.exports = router;
