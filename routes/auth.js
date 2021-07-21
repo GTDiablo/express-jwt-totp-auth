@@ -46,7 +46,7 @@ router.post('/registration', async (req, res)=> {
 
         // TODO: Fix otpauthURL speakeasy function
         // const url = speakeasy.otpauthURL({ secret: secret.base32, label: `${APP_NAME}: ${email}` });
-        const url = `otpauth://totp/ex-aut: ${email}?secret=${secret.base32}`;
+        const url = `otpauth://totp/${APP_NAME}: ${email}?secret=${secret.base32}`;
 
         // Save processed user to database
         const user = new User({username, email, password: hashedPassword, secret: secret.base32});
