@@ -101,7 +101,7 @@ router.post('/login', async (req, res) => {
     })
     if (!verified) {
         res.status(400).json({
-            details: 'TOTP token missmatch!'
+            details: 'TOTP token mismatch!'
         }).end()
         return;
     }
